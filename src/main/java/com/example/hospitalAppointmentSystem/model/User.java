@@ -22,8 +22,12 @@ public class User {
     private String password;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Role role;
 
     private boolean enabled = true;
+
+    private String fullName;
+    private String phone;
 }
 
