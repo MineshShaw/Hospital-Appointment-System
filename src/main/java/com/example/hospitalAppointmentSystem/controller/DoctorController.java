@@ -6,12 +6,13 @@ import com.example.hospitalAppointmentSystem.service.DoctorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/doctors")
+@RequestMapping("/api/doctor")
 @RequiredArgsConstructor
 public class DoctorController {
 
@@ -28,10 +29,11 @@ public class DoctorController {
         return ResponseEntity.ok(doctorService.getDoctorById(id));
     }
 
+    @PreAuthorize("hasRole('DOCTOR')")
     @PostMapping("/availability")
     public ResponseEntity<Void> addAvailability(
             @Valid @RequestBody CreateAvailabilityRequest request) {
-
+        System.out.println("request received");
         availabilityService.createAvailability(request);
         return ResponseEntity.ok().build();
     }
