@@ -31,6 +31,7 @@ public class SpecializationService {
     ) {
         Specialization specialization = new Specialization();
         specialization.setName(dto.getName().trim());
+        specialization.setDescription(dto.getDescription().trim());
 
         specializationRepository.save(specialization);
 
@@ -65,6 +66,7 @@ public class SpecializationService {
                 );
 
         specialization.setName(dto.getName().trim());
+        specialization.setDescription(dto.getDescription().trim());
 
         return mapToResponseDTO(specialization);
     }
@@ -93,6 +95,7 @@ public class SpecializationService {
         SpecializationResponseDTO dto = new SpecializationResponseDTO();
         dto.setId(specialization.getId());
         dto.setName(specialization.getName());
+        dto.setDescription(specialization.getDescription());
         return dto;
     }
 }

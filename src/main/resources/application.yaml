@@ -6,7 +6,6 @@ spring:
     username: root
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-
   jpa:
     hibernate:
       ddl-auto: update
@@ -14,7 +13,52 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: mineshshaw2007@gmail.com
+    password: ryoahvgusianitih
+    protocol: smtp
+    tls: true
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
 
 jwt:
   secret: "1bcd03eb010e5623e0d95c8bbc7593d1b27c255a87ac85341e85fd91676f6186"
   expiration: 86400000
+
+logging:
+  level:
+    org:
+      springframework:
+        web: DEBUG
+        security: DEBUG
+    com:
+      example:
+        hospitalAppointmentSystem:
+          config:
+            JwtAuthenticationFilter: DEBUG
+          service:
+            CustomUserDetailsService: DEBUG
+
+server:
+  error:
+    include-stacktrace: ALWAYS
+    include-message: ALWAYS
+    include-binding-errors: ALWAYS
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui
+    configUrl: /api-docs/swagger-config
+    disable-swagger-default-url: true
+    url: /api-docs
+  info:
+    title: Hospital Appointment API
+    version: 1.0
+    description: API documentation for the Hospital Appointment System
+

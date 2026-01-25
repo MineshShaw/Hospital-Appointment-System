@@ -2,11 +2,12 @@ package com.example.hospitalAppointmentSystem.dto.appointment;
 
 import com.example.hospitalAppointmentSystem.model.AppointmentStatus;
 import lombok.Getter;
+import lombok.Setter;
 
-import java.util.Set;
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 public class AppointmentResponseDTO {
 
     private Long id;

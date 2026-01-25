@@ -24,11 +24,10 @@ public class JwtUtil {
         this.EXPIRATION = expiration;
     }
 
-    public String generateToken(Long id, String email) {
+    public String generateToken(String email) {
 
         return Jwts.builder()
                 .setSubject(email)
-                .setClaims(Map.of("id", id))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -38,8 +37,6 @@ public class JwtUtil {
     public String extractEmail(String token) {
         return getClaims(token).getSubject();
     }
-
-    public Long extractId(String token) {return getClaims(token).get("id", Long.class);}
 
     public boolean isTokenValid(String token) {
         try {

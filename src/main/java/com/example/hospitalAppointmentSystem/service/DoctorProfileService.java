@@ -10,13 +10,12 @@ import com.example.hospitalAppointmentSystem.repository.SpecializationRepository
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 
 @Service
-@Transactional(readOnly = true)
 public class DoctorProfileService {
 
     private final DoctorProfileRepository doctorRepo;
@@ -44,16 +43,26 @@ public class DoctorProfileService {
         doctorRepo.save(doctorProfile);
     }
 
-    public DoctorProfile update(DoctorProfileUpdateDTO updateDTO, Long id) {
-        Set<Long> specializations = updateDTO.getSpecializationIds().stream().collect(Collectors.toSet());
-        DoctorProfile doctor = getByUserId(id);
-        doctor.setSpecializations(specializationRepository.findAllById(specializations).stream().collect(Collectors.toSet()));
-        doctor.setBio(updateDTO.getBio());
-        doctor.setYearsOfExperience(updateDTO.getYearsOfExperience());
+    @Transactional
+    public DoctorProfile update(DoctorProfileUpdateDTO dto, Long doctorId) {
+        DoctorProfile doctor = doctorRepo.findByUserId(doctorId)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+
+        doctor.setYearsOfExperience(dto.getYearsOfExperience());
+        doctor.setBio(dto.getBio());
+
+        Set<Specialization> specs =
+                new HashSet<>(specializationRepository.findAllById(dto.getSpecializationIds()));
+
+        doctor.getSpecializations().clear();
+        doctor.getSpecializations().addAll(specs);
+
         doctorRepo.save(doctor);
+
         return doctor;
     }
 
+    @Transactional
     public DoctorProfile approveDoctor(Long doctorProfileId) {
 
         DoctorProfile doctor = doctorRepo.findById(doctorProfileId)
@@ -76,6 +85,7 @@ public class DoctorProfileService {
         return doctor;
     }
 
+    @Transactional
     public void rejectDoctor(Long doctorProfileId) {
 
         DoctorProfile doctor = doctorRepo.findById(doctorProfileId)

@@ -14,15 +14,18 @@ public class AppointmentService {
     private final DoctorAvailabilityRepository availabilityRepo;
     private final AppointmentRepository appointmentRepo;
     private final PatientProfileRepository patientRepo;
+    private final EmailService emailService;
 
     public AppointmentService(
             DoctorAvailabilityRepository availabilityRepo,
             AppointmentRepository appointmentRepo,
-            PatientProfileRepository patientRepo
+            PatientProfileRepository patientRepo,
+            EmailService emailService
     ) {
         this.availabilityRepo = availabilityRepo;
         this.appointmentRepo = appointmentRepo;
         this.patientRepo = patientRepo;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -59,13 +62,30 @@ public class AppointmentService {
         appointmentRepo.save(appointment);
         availabilityRepo.save(availability);
 
+        String patientEmail = appointment.getPatient().getUser().getEmail();
+        String doctorEmail = appointment.getAvailability().getDoctor().getUser().getEmail();
+
+        String subject = "Appointment Confirmation";
+        String text = "Dear " + appointment.getPatient().getFullName() + ",<br>" +
+                "Your appointment with Dr. " + appointment.getAvailability().getDoctor().getFullName() +
+                " on " + appointment.getAvailability().getStartTime() + " has been confirmed.";
+
+        emailService.sendEmail(patientEmail, subject, text);
+        emailService.sendEmail(doctorEmail, subject, "Dear Dr. " +
+                appointment.getAvailability().getDoctor().getFullName() +
+                ",<br>You have a new appointment with " + appointment.getPatient().getFullName() +
+                " on " + appointment.getAvailability().getStartTime());
+
+
         return appointment;
     }
 
     @Transactional
-    public void cancelAppointment(Long appointmentId) {
+    public void cancelAppointment(Long appointmentId, Long userId) {
         Appointment appointment = appointmentRepo.findById(appointmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Appointment not found"));
+
+        if (!appointment.getPatient().getUser().getId().equals(userId)) throw new IllegalArgumentException("Cannot cancel other user's appointments");
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
 

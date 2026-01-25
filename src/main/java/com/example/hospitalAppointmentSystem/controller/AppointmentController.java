@@ -7,6 +7,13 @@ import com.example.hospitalAppointmentSystem.service.AppointmentService;
 import com.example.hospitalAppointmentSystem.service.DoctorProfileService;
 import com.example.hospitalAppointmentSystem.service.PatientProfileService;
 import com.example.hospitalAppointmentSystem.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +24,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/appointments")
+@Tag(
+        name = "Appointments",
+        description = "Booking, cancelling, and viewing appointments"
+)
+@SecurityRequirement(name = "bearerAuth")
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
@@ -36,11 +48,49 @@ public class AppointmentController {
         this.doctorProfileService = doctorProfileService;
     }
 
-    @PostMapping()
+    @Operation(
+            summary = "Book an appointment",
+            description = """
+                    Allows a PATIENT to book an appointment using an availability slot.
+                    
+                    - Slot must exist
+                    - Slot must not be already booked
+                    - Appointment is created with status BOOKED
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Appointment booked successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AppointmentResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request or slot unavailable",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only PATIENT users can book appointments",
+                    content = @Content
+            )
+    })
+    @PostMapping
     @PreAuthorize("hasRole('PATIENT')")
     public AppointmentResponseDTO book(
             Authentication authentication,
-            @Valid @RequestBody AppointmentCreateRequestDTO dto
+            @Valid
+            @RequestBody
+            @Schema(description = "Appointment booking request")
+            AppointmentCreateRequestDTO dto
     ) {
         User user = userService.getByEmail(authentication.getName());
 
@@ -55,32 +105,104 @@ public class AppointmentController {
         return toResponseDTO(appointment);
     }
 
-
-    @PreAuthorize("hasRole('PATIENT')")
+    @Operation(
+            summary = "Cancel an appointment",
+            description = """
+                    Allows a PATIENT to cancel their appointment.
+                    
+                    - Only appointments owned by the patient can be cancelled
+                    - Status is updated to CANCELLED
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Appointment cancelled successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Appointment not found",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only PATIENT users can cancel appointments",
+                    content = @Content
+            )
+    })
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<Void> cancel(@PathVariable Long id) {
-        appointmentService.cancelAppointment(id);
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<Void> cancel(Authentication authentication, @PathVariable Long id) {
+        User user = userService.getByEmail(authentication.getName());
+        appointmentService.cancelAppointment(id, user.getId());
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasRole('PATIENT')")
+    @Operation(
+            summary = "Get patient appointments",
+            description = "Returns all appointments booked by the logged-in patient"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Appointments retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AppointmentResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only PATIENT users can access this endpoint",
+                    content = @Content
+            )
+    })
     @GetMapping("/patient/me")
+    @PreAuthorize("hasRole('PATIENT')")
     public List<AppointmentResponseDTO> getPatientAppointments(Authentication authentication) {
         User user = userService.getByEmail(authentication.getName());
 
-        return appointmentService.getPatientAppointments(patientProfileService.getByUserId(user.getId()).getId())
-                .stream().map(this::toResponseDTO).toList();
+        return appointmentService
+                .getPatientAppointments(
+                        patientProfileService.getByUserId(user.getId()).getId()
+                )
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
     }
 
-    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(
+            summary = "Get doctor appointments",
+            description = "Returns all scheduled appointments for the logged-in doctor"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Appointments retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AppointmentResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Only DOCTOR users can access this endpoint",
+                    content = @Content
+            )
+    })
     @GetMapping("/doctor/me")
+    @PreAuthorize("hasRole('DOCTOR')")
     public List<AppointmentResponseDTO> getDoctorAppointments(Authentication authentication) {
         User user = userService.getByEmail(authentication.getName());
 
-        return appointmentService.getDoctorAppointments(doctorProfileService.getByUserId(user.getId()).getId())
-                .stream().map(this::toResponseDTO).toList();
+        return appointmentService
+                .getDoctorAppointments(
+                        doctorProfileService.getByUserId(user.getId()).getId()
+                )
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
     }
-
 
     public AppointmentResponseDTO toResponseDTO(Appointment a) {
 
@@ -95,6 +217,4 @@ public class AppointmentController {
                 p.getFullName()
         );
     }
-
 }
-

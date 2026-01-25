@@ -1,10 +1,12 @@
 package com.example.hospitalAppointmentSystem.dto.doctor;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Set;
 
 @Getter
+@Setter
 public class DoctorProfileResponseDTO {
 
     private Long id;

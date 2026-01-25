@@ -30,6 +30,6 @@ public class AuthService {
 
         User user = userService.getByEmail(email);
 
-        return jwtUtil.generateToken(user.getId(), user.getEmail());
+        return jwtUtil.generateToken(user.getEmail());
     }
 }

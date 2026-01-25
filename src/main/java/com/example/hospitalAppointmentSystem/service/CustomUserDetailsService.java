@@ -46,7 +46,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         } else if (patientRepo.existsByUserId(user.getId())) {
             authorities.add(new SimpleGrantedAuthority("ROLE_PATIENT"));
         } else {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         }
 
         return new org.springframework.security.core.userdetails.User(
