@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.Map;
 
 @Component
 public class JwtUtil {
@@ -23,10 +24,11 @@ public class JwtUtil {
         this.EXPIRATION = expiration;
     }
 
-    public String generateToken(String email) {
+    public String generateToken(Long id, String email) {
 
         return Jwts.builder()
                 .setSubject(email)
+                .setClaims(Map.of("id", id))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -36,6 +38,8 @@ public class JwtUtil {
     public String extractEmail(String token) {
         return getClaims(token).getSubject();
     }
+
+    public Long extractId(String token) {return getClaims(token).get("id", Long.class);}
 
     public boolean isTokenValid(String token) {
         try {

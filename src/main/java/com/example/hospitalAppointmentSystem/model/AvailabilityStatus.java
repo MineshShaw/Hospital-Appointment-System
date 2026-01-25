@@ -1,8 +1,8 @@
 package com.example.hospitalAppointmentSystem.model;
 
-public enum AppointmentStatus {
+public enum AvailabilityStatus {
+    AVAILABLE,
     BOOKED,
-    CANCELLED,
-    COMPLETED
+    BLOCKED
 }
 

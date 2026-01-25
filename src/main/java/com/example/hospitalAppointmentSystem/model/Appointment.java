@@ -1,16 +1,18 @@
 package com.example.hospitalAppointmentSystem.model;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "appointments")
+@Table(
+        name = "appointments",
+        uniqueConstraints = @UniqueConstraint(columnNames = "availability_id")
+)
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
 public class Appointment {
 
     @Id
@@ -18,18 +20,26 @@ public class Appointment {
     private Long id;
 
     @ManyToOne(optional = false)
-    private User patient;
+    @JoinColumn(name = "patient_profile_id", nullable = false)
+    private PatientProfile patient;
 
-    @ManyToOne(optional = false)
-    private User doctor;
-
-    @ManyToOne(optional = false)
+    @OneToOne(optional = false)
+    @JoinColumn(name = "availability_id", nullable = false, unique = true)
     private DoctorAvailability availability;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AppointmentStatus status = AppointmentStatus.REQUESTED;
+    private AppointmentStatus status;
 
-    @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(nullable = false, length = 500)
+    private String reasonForVisit;
+
+    @Column(length = 1000)
+    private String symptoms;
+
+    @Column(length = 1000)
+    private String patientNotes;
+
+    private LocalDateTime createdAt;
 }
+

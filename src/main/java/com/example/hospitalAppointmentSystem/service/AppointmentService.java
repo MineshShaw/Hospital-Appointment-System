@@ -1,155 +1,86 @@
 package com.example.hospitalAppointmentSystem.service;
 
-import com.example.hospitalAppointmentSystem.dto.*;
 import com.example.hospitalAppointmentSystem.model.*;
 import com.example.hospitalAppointmentSystem.repository.*;
-import com.example.hospitalAppointmentSystem.util.SecurityUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class AppointmentService {
 
-    private final AppointmentRepository appointmentRepository;
-    private final DoctorAvailabilityRepository availabilityRepository;
-    private final UserRepository userRepository;
+    private final DoctorAvailabilityRepository availabilityRepo;
+    private final AppointmentRepository appointmentRepo;
+    private final PatientProfileRepository patientRepo;
 
-    public void bookAppointment(BookAppointmentRequest request) {
+    public AppointmentService(
+            DoctorAvailabilityRepository availabilityRepo,
+            AppointmentRepository appointmentRepo,
+            PatientProfileRepository patientRepo
+    ) {
+        this.availabilityRepo = availabilityRepo;
+        this.appointmentRepo = appointmentRepo;
+        this.patientRepo = patientRepo;
+    }
 
-        User patient = getCurrentUser();
-
+    @Transactional
+    public Appointment bookAppointment(
+            Long availabilityId,
+            Long patientUserId,
+            String reason,
+            String symptoms,
+            String notes
+    ) {
         DoctorAvailability availability =
-                availabilityRepository.findById(request.getAvailabilityId())
-                        .orElseThrow(() ->
-                                new IllegalArgumentException("Slot not found"));
+                availabilityRepo.findByIdForUpdate(availabilityId)
+                        .orElseThrow(() -> new IllegalArgumentException("Slot not found"));
 
-        if (availability.isBooked()) {
-            throw new IllegalStateException("Slot already booked");
+        if (availability.getStatus() != AvailabilityStatus.AVAILABLE) {
+            throw new IllegalStateException("Slot is not available");
         }
 
-        availability.setBooked(true);
+        PatientProfile patient =
+                patientRepo.findByUserId(patientUserId)
+                        .orElseThrow(() -> new IllegalArgumentException("Patient not found"));
 
         Appointment appointment = new Appointment();
-        appointment.setPatient(patient);
-        appointment.setDoctor(availability.getDoctor());
         appointment.setAvailability(availability);
-        appointment.setStatus(AppointmentStatus.REQUESTED);
+        appointment.setPatient(patient);
+        appointment.setStatus(AppointmentStatus.BOOKED);
+        appointment.setReasonForVisit(reason);
+        appointment.setSymptoms(symptoms);
+        appointment.setPatientNotes(notes);
+        appointment.setCreatedAt(LocalDateTime.now());
 
-        appointmentRepository.save(appointment);
-        availabilityRepository.save(availability);
+        availability.setStatus(AvailabilityStatus.BOOKED);
+
+        appointmentRepo.save(appointment);
+        availabilityRepo.save(availability);
+
+        return appointment;
     }
 
-    public List<AppointmentResponse> getMyAppointments() {
-
-        User patient = getCurrentUser();
-
-        return appointmentRepository.findByPatient(patient)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
-    public List<AppointmentResponse> getDoctorAppointments() {
-
-        User doctor = getCurrentUser();
-
-        return appointmentRepository.findByDoctor(doctor)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
-    private boolean isValidTransition(
-            AppointmentStatus current, AppointmentStatus next) {
-
-        return switch (current) {
-            case REQUESTED ->
-                    next == AppointmentStatus.CONFIRMED ||
-                            next == AppointmentStatus.CANCELLED;
-            case CONFIRMED ->
-                    next == AppointmentStatus.COMPLETED ||
-                            next == AppointmentStatus.CANCELLED;
-            default -> false;
-        };
-    }
-
-    private Appointment getAppointment(Long id) {
-        return appointmentRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Appointment not found"));
-    }
-
-    private User getCurrentUser() {
-        String email = SecurityUtil.getCurrentUserEmail();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new IllegalStateException("Authenticated user not found"));
-    }
-
-    private AppointmentResponse mapToResponse(Appointment a) {
-        return new AppointmentResponse(
-                a.getId(),
-                a.getDoctor().getFullName(),
-                a.getPatient().getFullName(),
-                a.getAvailability().getStartTime(),
-                a.getAvailability().getEndTime(),
-                a.getStatus()
-        );
-    }
-
-    private void validateOwnership(Appointment appointment) {
-
-        User currentUser = getCurrentUser();
-
-        boolean isPatientOwner =
-                appointment.getPatient().getId().equals(currentUser.getId());
-
-        boolean isDoctorOwner =
-                appointment.getDoctor().getId().equals(currentUser.getId());
-
-        if (!isPatientOwner && !isDoctorOwner) {
-            throw new SecurityException("Access denied");
-        }
-    }
-
-    public void cancelAppointment(Long id) {
-
-        Appointment appointment = getAppointment(id);
-        validateOwnership(appointment);
-
-        if (appointment.getStatus() == AppointmentStatus.CANCELLED ||
-                appointment.getStatus() == AppointmentStatus.COMPLETED) {
-            throw new IllegalStateException("Cannot cancel appointment");
-        }
+    @Transactional
+    public void cancelAppointment(Long appointmentId) {
+        Appointment appointment = appointmentRepo.findById(appointmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Appointment not found"));
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
-        appointment.getAvailability().setBooked(false);
 
-        appointmentRepository.save(appointment);
+        DoctorAvailability availability = appointment.getAvailability();
+        availability.setStatus(AvailabilityStatus.AVAILABLE);
+
+        appointmentRepo.save(appointment);
+        availabilityRepo.save(availability);
     }
 
-    public void updateAppointmentStatus(
-            Long id, UpdateAppointmentStatusRequest request) {
-
-        Appointment appointment = getAppointment(id);
-        User currentUser = getCurrentUser();
-
-        if (!appointment.getDoctor().getId().equals(currentUser.getId())) {
-            throw new SecurityException("Only assigned doctor can update status");
-        }
-
-        AppointmentStatus newStatus = request.getStatus();
-
-        if (!isValidTransition(appointment.getStatus(), newStatus)) {
-            throw new IllegalStateException("Invalid status transition");
-        }
-
-        appointment.setStatus(newStatus);
-        appointmentRepository.save(appointment);
+    public List<Appointment> getPatientAppointments(Long id) {
+        return appointmentRepo.findByPatientId(id);
     }
 
-
+    public List<Appointment> getDoctorAppointments(Long id) {
+        return appointmentRepo.findByAvailabilityDoctorId(id);
+    }
 }

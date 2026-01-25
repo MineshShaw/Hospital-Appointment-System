@@ -1,47 +1,50 @@
 package com.example.hospitalAppointmentSystem.service;
 
-import com.example.hospitalAppointmentSystem.dto.UpdateUserProfileRequest;
-import com.example.hospitalAppointmentSystem.dto.UserProfileResponse;
 import com.example.hospitalAppointmentSystem.model.User;
 import com.example.hospitalAppointmentSystem.repository.UserRepository;
-import com.example.hospitalAppointmentSystem.util.SecurityUtil;
-import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
+@Transactional
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserProfileResponse getCurrentUserProfile() {
-
-        User user = getCurrentUser();
-
-        return new UserProfileResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getRole(),
-                user.getFullName(),
-                user.getPhone()
-        );
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder
+    ) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    public void updateCurrentUserProfile(UpdateUserProfileRequest request) {
+    public User registerUser(String email, String rawPassword) {
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email already registered");
+        }
 
-        User user = getCurrentUser();
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setEnabled(true);
 
-        user.setFullName(request.getFullName());
-        user.setPhone(request.getPhone());
-
-        userRepository.save(user);
+        return userRepository.save(user);
     }
 
-    private User getCurrentUser() {
-        String email = SecurityUtil.getCurrentUserEmail();
+    @Transactional(readOnly = true)
+    public User getByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new IllegalStateException("Authenticated user not found"));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public User getById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
     }
 }
+
 
